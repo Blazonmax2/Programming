@@ -1,0 +1,17 @@
+def do_calculation(first_number, second_number):
+    addition = first_number + second_number
+    subtraction = first_number - second_number
+    multiplication = first_number * second_number
+    division = first_number / second_number
+    player.say("The result of addition is: " + str(addition))
+    player.say("The result of subtraction is: " + str(subtraction))
+    player.say("The result of multiplication is: " + str(multiplication))
+    player.say("The result of division is: " + str(division))
+
+player.on_chat("calculate", do_calculation)The code defines a function do_calculation that:
+
+Takes two numbers as parameters
+Calculates addition, subtraction, multiplication, and division
+Outputs each result using player.say() (converts numbers to strings)
+Is triggered when a player types "calculate" in chat, followed by two numbers
+
