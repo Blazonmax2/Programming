@@ -1,0 +1,11 @@
+def build_snowman():
+    agent.teleport_to_player()
+    size = 3
+    for position in range(2, 11, 4):
+        shapes.sphere(SNOW, pos(15, (position-2) * 1.75, 0), size*2, ShapeOperation.REPLACE)
+        player.say("Positon: " + str(position))
+        player.say("Size: " + str(size))
+        size -= 1
+    player.say("Done!")
+
+player.on_chat("snowman", build_snowman)
