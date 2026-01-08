@@ -1,0 +1,16 @@
+
+blocks.fill(GRASS, player.position(), pos(10, 2, 10), FillOperation.REPLACE)
+agent.teleport_to_player()
+agent.destroy(FORWARD)
+for i in range(10):
+    x = randint(1, 4)
+    y = randint(1,2)
+
+    for _ in range(x):
+        agent.destroy(FORWARD)
+        agent.move(FORWARD, 1)
+
+    if y == 1:
+        agent.turn(TurnDirection.LEFT)
+    if y == 2:
+        agent.turn(TurnDirection.RIGHT)
