@@ -1,0 +1,169 @@
+// ===== QUEST SYSTEM – FIXED FOR MINECRAFT EDUCATION =====
+
+
+// Quest dáta
+let activeQuests: any = {}
+let completedQuests: string[] = []
+let questProgress: any = {}
+
+// Definícia questov
+const quests: any = {
+    quest1: {
+        id: "quest1",
+        name: "Zber dreva",
+        description: "Získaj 10 kusov dreva",
+        type: "collect",
+        amount: 10,
+        rewardItem: Item.Diamond,
+        rewardCount: 3
+    },
+    quest2: {
+        id: "quest2",
+        name: "Staviteľ",
+        description: "Postav 20 blokov",
+        type: "build",
+        amount: 20,
+        rewardItem: Item.IronIngot,
+        rewardCount: 5
+    },
+    quest3: {
+        id: "quest3",
+        name: "Prieskumník",
+        description: "Prejdi 100 blokov",
+        type: "travel",
+        amount: 100,
+        rewardItem: Item.GoldIngot,
+        rewardCount: 4
+    }
+}
+
+// Spustenie questu
+function startQuest(id: string) {
+    if (quests[id] && !activeQuests[id]) {
+        activeQuests[id] = quests[id]
+        questProgress[id] = 0
+        player.say("Nový quest: " + quests[id].name)
+        player.say(quests[id].description)
+    }
+}
+
+// Update progressu
+function updateQuest(id: string, value: number) {
+    if (activeQuests[id]) {
+        questProgress[id] += value
+        let q = activeQuests[id]
+
+        player.say(q.name + ": " + questProgress[id] + "/" + q.amount)
+
+        if (questProgress[id] >= q.amount) {
+            completeQuest(id)
+        }
+    }
+}
+
+// Dokončenie questu
+function completeQuest(id: string) {
+    let q = activeQuests[id]
+
+    player.runChatCommand(
+        "give @s " + q.rewardItem + " " + q.rewardCount
+    )
+
+    player.say("QUEST DOKONČENÝ: " + q.name)
+    player.say("Odmena: " + q.rewardCount)
+
+    completedQuests.push(id)
+    delete activeQuests[id]
+    delete questProgress[id]
+}
+
+// Zobrazenie questov
+function showQuests() {
+    player.say("AKTÍVNE QUESTY:")
+    let keys = Object.keys(activeQuests)
+    if (keys.length == 0) {
+        player.say("Žiadne")
+    }
+    for (let k of keys) {
+        let q = activeQuests[k]
+        player.say(q.name + " (" + questProgress[k] + "/" + q.amount + ")")
+    }
+}
+
+// BUILD quest
+player.onChat("place", function () {
+    let keys = Object.keys(activeQuests)
+    for (let i = 0; i < keys.length; i++) {
+        let questId = keys[i]
+        let quest = activeQuests[questId]
+        if (quest.type === "build") {
+            updateQuest(questId, 1)
+        }
+    }
+})
+
+
+
+
+
+// COLLECT quest
+// Trigger when player breaks oak log
+blocks.onBlockBroken(LOG_OAK, function () {
+    
+    let keys = Object.keys(activeQuests)
+
+    for (let i = 0; i < keys.length; i++) {
+        let questId = keys[i]
+        let quest = activeQuests[questId]
+
+
+        
+        if (quest.type == "collect") {
+            updateQuest(questId, 1)
+        }
+    }
+})
+
+
+
+// TRAVEL quest
+let lastX = 0
+let lastZ = 0
+let first = true
+
+loops.forever(function () {
+    let pos = player.position()
+    let x = pos.getValue(Axis.X)
+    let z = pos.getValue(Axis.Z)
+
+    if (!first) {
+        let distanceX = Math.abs(x - lastX)
+        let distanceZ = Math.abs(z - lastZ)
+        let totalDistance = Math.floor(distanceX + distanceZ)  // <-- tu je definované
+
+        if (totalDistance > 0) {
+            let keys = Object.keys(activeQuests)
+            for (let i = 0; i < keys.length; i++) {
+                let questId = keys[i]
+                let quest = activeQuests[questId]
+                if (quest.type === "travel") {
+                    updateQuest(questId, totalDistance)  // <-- teraz vidí totalDistance
+                }
+            }
+        }
+    }
+
+    lastX = x
+    lastZ = z
+    first = false
+    loops.pause(1000)
+})
+
+
+// Príkazy
+player.onChat("quest", showQuests)
+player.onChat("quest1", () => startQuest("quest1"))
+player.onChat("quest2", () => startQuest("quest2"))
+player.onChat("quest3", () => startQuest("quest3"))
+
+player.say("QUEST SYSTEM NAČÍTANÝ")
