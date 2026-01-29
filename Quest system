@@ -11,27 +11,27 @@ const quests: any = {
     quest1: {
         id: "quest1",
         name: "Zber dreva",
-        description: "Získaj 10 kusov dreva",
+        description: "Získaj 2 kusov dreva",
         type: "collect",
-        amount: 10,
+        amount: 2,
         rewardItem: Item.Diamond,
         rewardCount: 3
     },
     quest2: {
         id: "quest2",
         name: "Staviteľ",
-        description: "Postav 20 blokov",
+        description: "Poloz 2 dreva",
         type: "build",
-        amount: 20,
+        amount: 2,
         rewardItem: Item.IronIngot,
         rewardCount: 5
     },
     quest3: {
         id: "quest3",
         name: "Prieskumník",
-        description: "Prejdi 100 blokov",
+        description: "Prejdi `10` blokov",
         type: "travel",
-        amount: 100,
+        amount: 10,
         rewardItem: Item.GoldIngot,
         rewardCount: 4
     }
@@ -65,13 +65,16 @@ function updateQuest(id: string, value: number) {
 function completeQuest(id: string) {
     let q = activeQuests[id]
 
-    player.runChatCommand(
-        "give @s " + q.rewardItem + " " + q.rewardCount
+    mobs.give(
+        mobs.target(ALL_PLAYERS),
+        q.rewardItem,
+        q.rewardCount
     )
+    player.runChatCommand("say test")
 
     player.say("QUEST DOKONČENÝ: " + q.name)
     player.say("Odmena: " + q.rewardCount)
-
+    
     completedQuests.push(id)
     delete activeQuests[id]
     delete questProgress[id]
@@ -91,11 +94,14 @@ function showQuests() {
 }
 
 // BUILD quest
-player.onChat("place", function () {
+// Táto funkcia sa spustí automaticky pri položení bloku trávy
+blocks.onBlockPlaced(LOG_OAK, function () {
     let keys = Object.keys(activeQuests)
     for (let i = 0; i < keys.length; i++) {
         let questId = keys[i]
         let quest = activeQuests[questId]
+        
+        // Skontrolujeme, či ide o stavebný quest
         if (quest.type === "build") {
             updateQuest(questId, 1)
         }
@@ -109,7 +115,7 @@ player.onChat("place", function () {
 // COLLECT quest
 // Trigger when player breaks oak log
 blocks.onBlockBroken(LOG_OAK, function () {
-    
+
     let keys = Object.keys(activeQuests)
 
     for (let i = 0; i < keys.length; i++) {
@@ -117,7 +123,7 @@ blocks.onBlockBroken(LOG_OAK, function () {
         let quest = activeQuests[questId]
 
 
-        
+
         if (quest.type == "collect") {
             updateQuest(questId, 1)
         }
