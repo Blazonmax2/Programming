@@ -1,7 +1,7 @@
-// ===== QUEST SYSTEM – FIXED FOR MINECRAFT EDUCATION =====
+//  QUEST SYSTEM 
 
 
-// Quest dáta
+
 let activeQuests: any = {}
 let completedQuests: string[] = []
 let questProgress: any = {}
