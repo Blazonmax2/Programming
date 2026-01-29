@@ -1,175 +1,171 @@
-//  QUEST SYSTEM 
+// ==========================================================
+//      ULTIMATE RPG SYSTEM: MEGA EXPANSION (V17 - MASSIVE)
+// ==========================================================
+// Oprava: Chýbajúca zátvorka na riadku 133
+// Novinky: Auto-Chat Refresh, Reálne XP odmeny, Rozšírený status
+// ==========================================================
 
-
-
+// --- GLOBÁLNE PREMENNÉ (STAV HRÁČA) ---
 let activeQuests: any = {}
-let completedQuests: string[] = []
 let questProgress: any = {}
+let playerXP: number = 0
+let playerLevel: number = 1
+let playerClass: string = "None"
+let playerMana: number = 100
+let lastX = 0
+let lastZ = 0
+let firstRun = true
 
-// Definícia questov
+// --- DATABÁZA QUESTOV (KOMPLETNÝ ZOZNAM) ---
 const quests: any = {
-    quest1: {
-        id: "quest1",
-        name: "Zber dreva",
-        description: "Získaj 2 kusov dreva",
-        type: "collect",
-        amount: 2,
-        rewardItem: Item.Diamond,
-        rewardCount: 3
-    },
-    quest2: {
-        id: "quest2",
-        name: "Staviteľ",
-        description: "Poloz 2 dreva",
-        type: "build",
-        amount: 2,
-        rewardItem: Item.IronIngot,
-        rewardCount: 5
-    },
-    quest3: {
-        id: "quest3",
-        name: "Prieskumník",
-        description: "Prejdi `10` blokov",
-        type: "travel",
-        amount: 10,
-        rewardItem: Item.GoldIngot,
-        rewardCount: 4
-    }
+    "drevo": { id: "drevo", name: "Drevorubac", desc: "Vyrub 15 kusov dreva.", target: LOG_OAK, amount: 15, rpg_xp: 250, mc_xp: 5, reward: "give @s iron_axe 1", next: "stavba" },
+    "stavba": { id: "stavba", name: "Stavitel", desc: "Poloz 20 dosiek na zem.", target: PLANKS_OAK, amount: 20, rpg_xp: 400, mc_xp: 10, reward: "give @s golden_apple 2", next: "" },
+    "lovec": { id: "lovec", name: "Lovec Priser", desc: "Zabi 5 zombie.", target: ZOMBIE, amount: 5, rpg_xp: 300, mc_xp: 15, reward: "give @s iron_sword 1", next: "creeper" },
+    "creeper": { id: "creeper", name: "Lovec Creeperov", desc: "Zneskodni 2 creeperov.", target: CREEPER, amount: 2, rpg_xp: 500, mc_xp: 20, reward: "give @s tnt 2", next: "" },
+    "banik": { id: "banik", name: "Banik", desc: "Vykop 10 kusov zeleznej rudy.", target: IRON_ORE, amount: 10, rpg_xp: 400, mc_xp: 10, reward: "give @s iron_ingot 10", next: "zlato" },
+    "zlato": { id: "zlato", name: "Zlatokop", desc: "Vykop 5 kusov zlata.", target: GOLD_ORE, amount: 5, rpg_xp: 600, mc_xp: 15, reward: "give @s gold_ingot 5", next: "diamant" },
+    "diamant": { id: "diamant", name: "Kral Diamantov", desc: "Vykop 2 diamanty.", target: DIAMOND_ORE, amount: 2, rpg_xp: 2000, mc_xp: 50, reward: "give @s diamond 2", next: "" },
+    "farmar": { id: "farmar", name: "Farmar", desc: "Zasad 10 plodin.", target: null, amount: 10, rpg_xp: 250, mc_xp: 5, reward: "give @s cake 1", next: "" },
+    "prieskum": { id: "prieskum", name: "Prieskumnik", desc: "Prejdi 300 blokov.", type: "travel", amount: 300, rpg_xp: 500, mc_xp: 10, reward: "give @s compass 1", next: "" },
+    "skelet": { id: "skelet", name: "Skeletor", desc: "Zabi 8 kostlivcov.", target: SKELETON, amount: 8, rpg_xp: 450, mc_xp: 15, reward: "give @s arrow 64", next: "" },
+    "sklar": { id: "sklar", name: "Sklar", desc: "Vykop 20 piesku.", target: SAND, amount: 20, rpg_xp: 300, mc_xp: 5, reward: "give @s glass 64", next: "" },
+    "rybar": { id: "rybar", name: "Hlbinny Lov", desc: "Zabi 5 chobotnic.", target: SQUID, amount: 5, rpg_xp: 400, mc_xp: 10, reward: "give @s ink_sac 10", next: "" },
+    "vlk": { id: "vlk", name: "Krotitel", desc: "Zabi 3 vlky.", target: WOLF, amount: 3, rpg_xp: 350, mc_xp: 10, reward: "give @s bone 16", next: "" }
 }
 
-// Spustenie questu
+// --- JADRO SYSTÉMU (FUNKCIE) ---
+
 function startQuest(id: string) {
     if (quests[id] && !activeQuests[id]) {
         activeQuests[id] = quests[id]
         questProgress[id] = 0
-        player.say("Nový quest: " + quests[id].name)
-        player.say(quests[id].description)
+        player.say(`§b§l[NOVÁ ÚLOHA] §e${quests[id].name}`)
+        player.say(`§7Cieľ: ${quests[id].desc}`)
+        player.runChatCommand(`scoreboard players set "${quests[id].name}" Quests 0`)
     }
 }
 
-// Update progressu
-function updateQuest(id: string, value: number) {
+function updateQuest(id: string, val: number) {
     if (activeQuests[id]) {
-        questProgress[id] += value
+        questProgress[id] += val
         let q = activeQuests[id]
 
-        player.say(q.name + ": " + questProgress[id] + "/" + q.amount)
+        // --- AUTOMATICKÝ REFRESH PROGRESU V CHATE ---
+        player.say(`§6[PROGRES] §f${q.name}: §e${questProgress[id]}/${q.amount}`)
+
+        player.runChatCommand(`title @s actionbar §6${q.name}: §f${questProgress[id]}/${q.amount}`)
+        player.runChatCommand(`scoreboard players set "${q.name}" Quests ${questProgress[id]}`)
 
         if (questProgress[id] >= q.amount) {
-            completeQuest(id)
+            // --- ODMENY (PREDMETY + XP) ---
+            player.runChatCommand(q.reward)
+            player.runChatCommand(`xp ${q.mc_xp}l @s`)
+            addRPGXP(q.rpg_xp)
+
+            player.runChatCommand("playsound random.levelup @a")
+            player.say(`§a§l[!] QUEST DOKONČENÝ: §f${q.name}`)
+            player.say(`§7Odmena: Predmety + ${q.mc_xp} Levelov + ${q.rpg_xp} RPG XP`)
+
+            player.runChatCommand(`scoreboard players reset "${q.name}" Quests`)
+            delete activeQuests[id]
+            if (q.next != "") startQuest(q.next)
         }
     }
 }
 
-// Dokončenie questu
-function completeQuest(id: string) {
-    let q = activeQuests[id]
-
-    mobs.give(
-        mobs.target(ALL_PLAYERS),
-        q.rewardItem,
-        q.rewardCount
-    )
-    player.runChatCommand("say test")
-
-    player.say("QUEST DOKONČENÝ: " + q.name)
-    player.say("Odmena: " + q.rewardCount)
-    
-    completedQuests.push(id)
-    delete activeQuests[id]
-    delete questProgress[id]
+function addRPGXP(amount: number) {
+    playerXP += amount
+    if (playerXP >= playerLevel * 300) {
+        playerLevel++
+        playerXP = 0
+        player.runChatCommand(`title @s title "§d§lRPG LEVEL UP!"`)
+        player.say("§d§l⭐ Tvoj RPG level sa zvýšil na " + playerLevel)
+    }
+    player.runChatCommand(`scoreboard players set "RPG_Level" Stats ${playerLevel}`)
 }
 
-// Zobrazenie questov
-function showQuests() {
-    player.say("AKTÍVNE QUESTY:")
-    let keys = Object.keys(activeQuests)
-    if (keys.length == 0) {
-        player.say("Žiadne")
-    }
-    for (let k of keys) {
-        let q = activeQuests[k]
-        player.say(q.name + " (" + questProgress[k] + "/" + q.amount + ")")
-    }
-}
+// --- DETEKCIA EVENTOV ---
 
-// BUILD quest
-// Táto funkcia sa spustí automaticky pri položení bloku trávy
-blocks.onBlockPlaced(LOG_OAK, function () {
-    let keys = Object.keys(activeQuests)
-    for (let i = 0; i < keys.length; i++) {
-        let questId = keys[i]
-        let quest = activeQuests[questId]
-        
-        // Skontrolujeme, či ide o stavebný quest
-        if (quest.type === "build") {
-            updateQuest(questId, 1)
-        }
-    }
-})
+blocks.onBlockBroken(LOG_OAK, () => updateQuest("drevo", 1))
+blocks.onBlockBroken(IRON_ORE, () => updateQuest("banik", 1))
+blocks.onBlockBroken(GOLD_ORE, () => updateQuest("zlato", 1))
+blocks.onBlockBroken(DIAMOND_ORE, () => updateQuest("diamant", 1))
+blocks.onBlockBroken(SAND, () => updateQuest("sklar", 1))
+blocks.onBlockPlaced(PLANKS_OAK, () => updateQuest("stavba", 1))
 
+// Farmár Fix: Interakcia s predmetmi
+player.onItemInteracted(SEEDS, () => { if (activeQuests["farmar"]) updateQuest("farmar", 1) })
+player.onItemInteracted(CARROTS, () => { if (activeQuests["farmar"]) updateQuest("farmar", 1) })
+player.onItemInteracted(POTATOES, () => { if (activeQuests["farmar"]) updateQuest("farmar", 1) })
 
+// Lov príšer a zvierat
+mobs.onMobKilled(mobs.monster(ZOMBIE), () => updateQuest("lovec", 1))
+mobs.onMobKilled(mobs.monster(CREEPER), () => updateQuest("creeper", 1))
+mobs.onMobKilled(mobs.monster(SKELETON), () => updateQuest("skelet", 1))
+mobs.onMobKilled(SQUID, () => updateQuest("rybar", 1))
+mobs.onMobKilled(WOLF, () => updateQuest("vlk", 1))
 
-
-
-// COLLECT quest
-// Trigger when player breaks oak log
-blocks.onBlockBroken(LOG_OAK, function () {
-
-    let keys = Object.keys(activeQuests)
-
-    for (let i = 0; i < keys.length; i++) {
-        let questId = keys[i]
-        let quest = activeQuests[questId]
-
-
-
-        if (quest.type == "collect") {
-            updateQuest(questId, 1)
-        }
-    }
-})
-
-
-
-// TRAVEL quest
-let lastX = 0
-let lastZ = 0
-let first = true
+// --- HLAVNÝ BEH (LOOP) ---
 
 loops.forever(function () {
-    let pos = player.position()
-    let x = pos.getValue(Axis.X)
-    let z = pos.getValue(Axis.Z)
+    let currentPos = player.position()
+    let x = Math.floor(currentPos.getValue(Axis.X))
+    let z = Math.floor(currentPos.getValue(Axis.Z))
 
-    if (!first) {
-        let distanceX = Math.abs(x - lastX)
-        let distanceZ = Math.abs(z - lastZ)
-        let totalDistance = Math.floor(distanceX + distanceZ)  // <-- tu je definované
+    // Regenerácia many
+    if (playerMana < 100) playerMana += 5
 
-        if (totalDistance > 0) {
-            let keys = Object.keys(activeQuests)
-            for (let i = 0; i < keys.length; i++) {
-                let questId = keys[i]
-                let quest = activeQuests[questId]
-                if (quest.type === "travel") {
-                    updateQuest(questId, totalDistance)  // <-- teraz vidí totalDistance
-                }
-            }
-        }
+    // Výpočet vzdialenosti (Prieskumník)
+    if (!firstRun) {
+        let dist = Math.abs(x - lastX) + Math.abs(z - lastZ)
+        if (dist > 0) updateQuest("prieskum", dist)
     }
 
     lastX = x
     lastZ = z
-    first = false
-    loops.pause(1000)
+    firstRun = false
+    loops.pause(2000)
 })
 
+// --- KONFIGURÁCIA CHAT PRÍKAZOV ---
 
-// Príkazy
-player.onChat("quest", showQuests)
-player.onChat("quest1", () => startQuest("quest1"))
-player.onChat("quest2", () => startQuest("quest2"))
-player.onChat("quest3", () => startQuest("quest3"))
+player.onChat("help", function () {
+    player.say("§6========== [ RPG MENU ] ==========")
+    player.say("§eSYSTÉM:")
+    player.say("§7.setup_rpg - Scoreboardy")
+    player.say("§7.status - Tvoje štatistiky")
+    player.say("§7.active - Tvoje rozrobené úlohy")
+    player.say("§eHLAVNÉ ÚLOHY:")
+    player.say("§b.start_drevo - Ťažba dreva (15 ks)")
+    player.say("§b.start_lovec - Lov zombie (5 ks)")
+    player.say("§b.start_banik - Ťažba železa (10 ks)")
+    player.say("§eVEDĽAJŠIE ÚLOHY:")
+    player.say("§b.start_farmar, .start_prieskum, .start_skelet")
+    player.say("§b.start_sklar, .start_rybar, .start_vlk")
+    player.say("§6================================")
+})
 
-player.say("QUEST SYSTEM NAČÍTANÝ")
+player.onChat("setup_rpg", function () {
+    player.runChatCommand("scoreboard objectives add Quests dummy \"§6§lAKTÍVNE ÚLOHY\"")
+    player.runChatCommand("scoreboard objectives setdisplay sidebar Quests")
+    player.runChatCommand("scoreboard objectives add Stats dummy \"RPG Stats\"")
+    player.runChatCommand("scoreboard objectives setdisplay list Stats")
+    player.say("§a[RPG] Scoreboardy boli úspešne inicializované!")
+})
+
+// Registrácia štartovacích príkazov
+player.onChat("start_drevo", () => startQuest("drevo"))
+player.onChat("start_lovec", () => startQuest("lovec"))
+player.onChat("start_banik", () => startQuest("banik"))
+player.onChat("start_farmar", () => startQuest("farmar"))
+player.onChat("start_prieskum", () => startQuest("prieskum"))
+player.onChat("start_skelet", () => startQuest("skelet"))
+player.onChat("start_sklar", () => startQuest("sklar"))
+player.onChat("start_rybar", () => startQuest("rybar"))
+player.onChat("start_vlk", () => startQuest("vlk"))
+
+player.onChat("status", () => {
+    player.say(`§fRPG Level: §d${playerLevel} | RPG XP: ${playerXP} | Mana: ${playerMana}%`)
+})
+
+// --- TU KONČÍ KÓD (ZÁTVORKA NIŽŠIE JE DÔLEŽITÁ) ---
