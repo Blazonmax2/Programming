@@ -1,0 +1,64 @@
+player.onChat("pyramida", function (sizeStr: string) {
+    let size = parseFloat(sizeStr); // Prevod textu na číslo
+    if (size < 5 || size > 61 || size % 2 === 0) { // Minimálna veľkosť pre interiér, max kvôli limitu a musí byť nepárna
+        player.say("§c[!] Veľkosť pyramídy musí byť nepárne číslo medzi 5 a 61.");
+        return;
+    }
+
+    let p = player.position();
+    let startX = p.getValue(Axis.X) - Math.floor(size / 2);
+    let startZ = p.getValue(Axis.Z) - Math.floor(size / 2);
+    let startY = p.getValue(Axis.Y);
+
+    player.say(`§eZačínam stavať pyramídu o veľkosti ${size} blokov...`);
+    player.runChatCommand("playsound dig.stone @s"); // Zvuk začiatku stavby
+
+    // Vyčistenie oblasti pred stavbou (odstráni trávu, stromy atď.)
+    // Toto je voliteľné, ak nechceš čistiť, zakomentuj riadok nižšie
+    blocks.fill(AIR, world(startX - 2, startY, startZ - 2), world(startX + size + 2, startY + size + 5, startZ + size + 2));
+
+
+    // Vonkajšie steny a jadro
+    for (let y = 0; y < size / 2; y++) {
+        let currentSize = size - (y * 2);
+        let currentX = startX + y;
+        let currentZ = startZ + y;
+        let currentY = startY + y;
+
+        // Základňa (dno) každej vrstvy
+        blocks.fill(SANDSTONE, world(currentX, currentY, currentZ), world(currentX + currentSize - 1, currentY, currentZ + currentSize - 1));
+
+        // Steny každej vrstvy (duté vnútri)
+        if (currentSize > 2) { // Aby sa nevykresľovali tenké steny pre vrch pyramídy
+            blocks.fill(SANDSTONE, world(currentX, currentY + 1, currentZ), world(currentX + currentSize - 1, currentY + 1, currentZ), FillOperation.Replace); // Predná stena
+            blocks.fill(SANDSTONE, world(currentX, currentY + 1, currentZ + currentSize - 1), world(currentX + currentSize - 1, currentY + 1, currentZ + currentSize - 1), FillOperation.Replace); // Zadná stena
+            blocks.fill(SANDSTONE, world(currentX, currentY + 1, currentZ + 1), world(currentX, currentY + 1, currentZ + currentSize - 2), FillOperation.Replace); // Ľavá stena
+            blocks.fill(SANDSTONE, world(currentX + currentSize - 1, currentY + 1, currentZ + 1), world(currentX + currentSize - 1, currentY + 1, currentZ + currentSize - 2), FillOperation.Replace); // Pravá stena
+        }
+    }
+
+    // Vytvorenie vnútorného priestoru (chodby)
+    let innerSize = size - 4; // Vnútorný priestor je o niečo menší
+    if (innerSize >= 3) {
+        let innerStartX = startX + 2;
+        let innerStartC = startZ + 2;
+        let innerStartY = startY + 1;
+        let innerHeight = Math.floor(size / 2) - 2; // Výška vnútorného priestoru
+
+        blocks.fill(AIR, world(innerStartX, innerStartY, innerStartC), world(innerStartX + innerSize -1 , innerStartY + innerHeight -1, innerStartC + innerSize -1));
+
+        // Vstupná chodba (stred základne jednej strany)
+        let entranceWidth = 3; // Šírka vstupu
+        let entranceDepth = 2; // Hĺbka vstupu do pyramídy
+        let entranceCenterZ = startZ + Math.floor(size / 2); // Stred Z osi
+        
+        blocks.fill(AIR, 
+            world(startX, startY + 1, entranceCenterZ - Math.floor(entranceWidth / 2)), 
+            world(startX + entranceDepth -1, startY + 2, entranceCenterZ + Math.floor(entranceWidth / 2)));
+    }
+
+
+    player.say("§a[✔] Pyramída je hotová!");
+    player.runChatCommand("playsound random.levelup @s");
+    player.runChatCommand("particle minecraft:totem_particle ~ ~1 ~");
+})
